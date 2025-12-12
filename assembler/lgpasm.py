@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# LGPAsm v4 by koppanyh, @copy 2025
+# LGPAsm v4.1 by koppanyh, @copy 2025
 
 
 
@@ -27,7 +27,8 @@ class CharLit(Numerable):
 		super().__init__()
 		self.c = c.lower()
 	def toNum(self):
-		# Stolen from https://github.com/WizardOfHaas/LGP-30/blob/ae28b67a4864ae9008e06dda6b2616f9fb38633d/js-lgp-30/flexo.js#L31
+		# Mostly stolen from https://github.com/WizardOfHaas/LGP-30/blob/ae28b67a4864ae9008e06dda6b2616f9fb38633d/js-lgp-30/flexo.js#L31
+		# but augmented from LGP programming manual.
 		charMap = {
 			# Numerical
 			"0": 0b000010,
@@ -65,12 +66,23 @@ class CharLit(Numerable):
 			"a": 0b111001,
 			"s": 0b111101,
 			# Controls
-			"'": 0b100000,
-			" ": 0b000011,
+			"\x0f": 0b000100,  # Lowercase
+			"\x0e": 0b001000,  # Uppercase
+			"\r"  : 0b010000,
+			"\n"  : 0b010000,  # Make newline == carriage return
+			"\b"  : 0b010100,
+			"\t"  : 0b011000,
+			"'"   : 0b100000,
+			"\0"  : 0b000000,
+			" "   : 0b000011,
+			# Signs
+			"+": 0b001011,
+			"-": 0b000111,
 			# The rest
 			";": 0b001111,
 			"/": 0b010011,
 			".": 0b010111,
+			",": 0b011011,
 			"v": 0b011111,
 			"o": 0b100011,
 			"x": 0b100111
@@ -78,6 +90,8 @@ class CharLit(Numerable):
 		if self.c not in charMap:
 			raise Exception(f"Character '{self.c}' not a valid LGP char")
 		return charMap[self.c]
+	def print(self):
+		return PRT((self.toNum(), 0))
 
 
 
@@ -100,6 +114,8 @@ class Addr(Numerable):
 			return LabAddr(val)
 		else:
 			return val
+	def toAbsAddr(self, labels):
+		return AbsAddr(0, 0) + self
 	def __repr__(self):
 		return f"{self.__class__.__name__}({self.track}, {self.sector})"
 
@@ -114,6 +130,8 @@ class AbsAddr(Addr):
 		sector %= 64
 		track = self.track + other.track + carry
 		return AbsAddr(track, sector)
+	def toAbsAddr(self, labels):
+		return self
 	def __str__(self):
 		return f"{self.track:02}{self.sector:02}"
 
@@ -185,6 +203,8 @@ class Instr(Paramable, Numerable):
 	def apply(self, ctx):
 		pass
 	def compile(self, ctx):
+		if not isinstance(self.addr(), Addr):
+			raise Exception(f"Instruction must have address param: {self}")
 		ctx.append(f"{self.__class__.Order}{self.addr()}'")
 
 class LDA(Instr):  # Load from addr
@@ -330,19 +350,44 @@ class LabelPrefix:
 		LabelPrefix.counter += 1
 		return f"{prefix}{macroDef.__name__}_{LabelPrefix.counter:04}/"
 
-def MACRO(macroDef, params, prefix=""):
-	return macroDef(params, LabelPrefix.get(macroDef, prefix))
+def MACRO(macroDef, params=[], prefix=""):
+	expanded = macroDef(params, LabelPrefix.get(macroDef, prefix))
+	for op in expanded:
+		if isinstance(op, ORIG):
+			print(f"# WARNING: Macro {macroDef.__name__} modifying origin: {op}")
+	return expanded
 
 def DATA(*args):
-	out = [f",00000{len(args):02}'"]
-	out.extend([HEX(Addr.toAddr(d)) for d in args])
+	dlen = 0
+	out = []
+	for d in args:
+		if isinstance(d, LABEL):
+			out.append(d)
+		else:
+			out.append(HEX(Addr.toAddr(d)))
+			dlen += 1
+	if dlen < 1 or dlen > 63:
+		raise Exception("DATA length must be between 1 and 63")
+	out.insert(0, f",00000{dlen:02}'")
 	return out
+	# TODO: split into multiple datas if it's too big
 
 class LABEL:
 	def __init__(self, name):
 		self.name = name
 	def __repr__(self):
 		return f"LABEL({repr(self.name)})"
+
+class DEBUG:
+	def __init__(self, text, prefix=""):
+		self.text = text
+		self.prefix = prefix
+	def __repr__(self):
+		if not self.prefix:
+			return f"DEBUG({repr(self.text)})"
+		return f"DEBUG({repr(self.text)}, {repr(self.prefix)})"
+	def __str__(self):
+		return f"{self.prefix}# DEBUG: {self.text}"
 
 class AsmCtx:
 	def __init__(self, ops):
@@ -368,11 +413,13 @@ class Assembler:
 				self.unwrap(op)
 			else:
 				self.ops.append(op)
-	def assemble(self):
+	def assemble(self, debug=False):
 		ctx = AsmCtx(self.ops)
 		# stage 1: calculate label addresses
 		for op in ctx.flush():
 			if isinstance(op, LABEL):
+				if op.name in ctx.labels:
+					raise Exception(f"LABEL already defined: {op.name}")
 				ctx.labels[op.name] = ctx.addr
 				#ctx.append(op)
 			else:
@@ -385,18 +432,23 @@ class Assembler:
 		for op in ctx.flush():
 			if isinstance(op, Paramable):
 				ctx.append(op.resolveLabels(ctx))
+			elif isinstance(op, Addr):
+				ctx.append(op.toAbsAddr(ctx.labels))
 			else:
 				ctx.append(op)
 		# stage 3: compile to tape
 		for op in ctx.flush():
 			if isinstance(op, Paramable):
 				op.compile(ctx)
-			elif isinstance(op, AbsAddr):
+			elif isinstance(op, Addr):
 				HLT(op).compile(ctx)
 			elif isinstance(op, str):
 				ctx.append(op)
+			elif isinstance(op, DEBUG):
+				if debug:
+					ctx.append(str(op))
 			else:
-				raise Exception(f"Cannot compile op: {op}")
+				raise Exception(f"Cannot compile op: {repr(op)}")
 		return ctx.flush()
 	def __repr__(self):
 		return f"Assembler({', '.join(map(repr, self.ops))})"
