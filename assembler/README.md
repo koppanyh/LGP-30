@@ -36,3 +36,54 @@ on Wikipedia for more information about what each opcode does.
 
 *addr is short for address* \
 *acc is short for accumulator*
+
+## Conventions
+
+### Subroutines
+
+Because of how strange they are on this computer, this is the recommended approach.
+
+Define your subroutine as a macro and define a caller macro for it:
+
+```
+def defExampleSubroutine(params, prefix):
+	return [
+		DEBUG("defExampleSubroutine"),
+		LABEL("exampleSubroutine"),
+		#
+		# Insert all your logic here.
+		#
+		LABEL("exampleSubroutine_rtn"),
+		JMP((0, 0)),
+	]
+
+# Call the example subroutine.
+# Usage: MACRO(exampleSubroutine)
+def exampleSubroutine(params, prefix):
+	return [
+		DEBUG(f"exampleSubroutine()"),
+		RTA("exampleSubroutine_rtn"),
+		JMP("exampleSubroutine"),
+	]
+
+```
+
+Then in your working code, call the subroutine definition macro to populate it
+into the code, then you can call the subroutine as needed:
+
+```
+Assembler(
+	# Populate the subroutine logic into the main program.
+	MACRO(defExampleSubroutine),
+	...
+	# Call the subroutine as needed.
+	MACRO(exampleSubroutine),
+)
+```
+
+It will return to the point after that caller macro, but be wary of nesting since
+this method doesn't use a return stack, so recursive calls will overwrite the
+return address.
+
+Also assume that the acc will be modified, unless otherwise stated by the
+subroutine's documentation.

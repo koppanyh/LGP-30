@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# LGPAsm v4.1 by koppanyh, @copy 2025
+# LGPAsm v4.2 by koppanyh, @copy 2026
 
 
 
@@ -30,62 +30,62 @@ class CharLit(Numerable):
 		# Mostly stolen from https://github.com/WizardOfHaas/LGP-30/blob/ae28b67a4864ae9008e06dda6b2616f9fb38633d/js-lgp-30/flexo.js#L31
 		# but augmented from LGP programming manual.
 		charMap = {
-			# Numerical
-			"0": 0b000010,
-			"l": 0b000110,
-			"1": 0b000110, #Patch for 1 == l
-			"2": 0b001010,
-			"3": 0b001110,
-			"4": 0b010010,
-			"5": 0b010110,
-			"6": 0b011010,
-			"7": 0b011110,
-			"8": 0b100010,
-			"9": 0b100110,
-			"f": 0b101010,
-			"g": 0b101110,
-			"j": 0b110010,
-			"k": 0b110110,
-			"q": 0b111010,
-			"w": 0b111110,
+			# Numerical    # Upper:
+			"0": 0b000010, # )
+			"l": 0b000110, # L
+			"1": 0b000110, # L      #Patch for 1 == l
+			"2": 0b001010, # *
+			"3": 0b001110, # "
+			"4": 0b010010, # delta
+			"5": 0b010110, # %
+			"6": 0b011010, # $
+			"7": 0b011110, # pi
+			"8": 0b100010, # sigma
+			"9": 0b100110, # (
+			"f": 0b101010, # F
+			"g": 0b101110, # G
+			"j": 0b110010, # J
+			"k": 0b110110, # K
+			"q": 0b111010, # Q
+			"w": 0b111110, # W
 			# Commands
-			"z": 0b000001,
-			"b": 0b000101,
-			"y": 0b001001,
-			"r": 0b001101,
-			"i": 0b010001,
-			"d": 0b010101,
-			"n": 0b011001,
-			"m": 0b011101,
-			"p": 0b100001,
-			"e": 0b100101,
-			"u": 0b101001,
-			"t": 0b101101,
-			"h": 0b110001,
-			"c": 0b110101,
-			"a": 0b111001,
-			"s": 0b111101,
+			"z": 0b000001, # Z
+			"b": 0b000101, # B
+			"y": 0b001001, # Y
+			"r": 0b001101, # R
+			"i": 0b010001, # I
+			"d": 0b010101, # D
+			"n": 0b011001, # N
+			"m": 0b011101, # M
+			"p": 0b100001, # P
+			"e": 0b100101, # E
+			"u": 0b101001, # U
+			"t": 0b101101, # T
+			"h": 0b110001, # H
+			"c": 0b110101, # C
+			"a": 0b111001, # A
+			"s": 0b111101, # S
 			# Controls
-			"\x0f": 0b000100,  # Lowercase
-			"\x0e": 0b001000,  # Uppercase
+			"\x0f": 0b000100,       # Lowercase
+			"\x0e": 0b001000,       # Uppercase
 			"\r"  : 0b010000,
-			"\n"  : 0b010000,  # Make newline == carriage return
+			"\n"  : 0b010000,       # Make newline == carriage return
 			"\b"  : 0b010100,
 			"\t"  : 0b011000,
 			"'"   : 0b100000,
 			"\0"  : 0b000000,
 			" "   : 0b000011,
 			# Signs
-			"+": 0b001011,
-			"-": 0b000111,
+			"+": 0b001011, # =
+			"-": 0b000111, # _
 			# The rest
-			";": 0b001111,
-			"/": 0b010011,
-			".": 0b010111,
-			",": 0b011011,
-			"v": 0b011111,
-			"o": 0b100011,
-			"x": 0b100111
+			";": 0b001111, # :
+			"/": 0b010011, # ?
+			".": 0b010111, # ]
+			",": 0b011011, # [
+			"v": 0b011111, # V
+			"o": 0b100011, # O
+			"x": 0b100111  # X
 		}
 		if self.c not in charMap:
 			raise Exception(f"Character '{self.c}' not a valid LGP char")
@@ -259,7 +259,7 @@ class PRT(Instr):  # Print
 
 class INP(Instr):  # Input
 	Order = "i"
-	def __init__(self, addr):
+	def __init__(self, addr=AbsAddr(0, 0)):
 		super().__init__(addr)
 
 class ADD(Instr):  # Add
