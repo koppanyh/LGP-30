@@ -1,0 +1,8 @@
+load test.tx
+set cpu manual
+set cpu 6b
+co
+
+#ex a
+
+bye
