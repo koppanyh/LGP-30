@@ -6,35 +6,6 @@ from lgpasm import *
 
 
 
-def setupKfBios(params, prefix):
-	return [
-		DEBUG("----- kfBios -----", '\n'),
-		DEBUG("BIOS Constants"),
-		DATA(
-			LABEL("kfBiosTrackMask"), 0b_111111_000000_00,
-			LABEL("kfBiosSectorMask"), 0b_000000_111111_00,
-			LABEL("kfBiosTerminatorMask"), 0b_111111_000000_000000_000000_000000_00,
-			LABEL("TRK10"), 0b_001010_000000_00,
-			LABEL("SEC10"), 0b_000000_001010_00,
-			LABEL("10q4"), 0b0_10100000000_0000_00_000000_000000_00,
-		),
-		LABEL("kfBiosSetup_str"), MACRO(PackString, [
-			f"kopForth {KF_VER_STR}, 31 Bit, LGP-30 Edition\n" +
-			f"Copyright {KF_YEAR_STR}, compiled {datetime.now().date()}\n"
-		], prefix),
-		LABEL("kfBiosSetup_str_ptr"), LabAddr("kfBiosSetup_str"),
-		MACRO(defKfBiosPrintIsize,       [], prefix),
-		MACRO(defKfBiosPrintPointer,     [], prefix),
-		MACRO(defKfBiosWriteChar,        [], prefix),
-		MACRO(defKfBiosWriteChars,       [], prefix),
-		MACRO(defKfBiosReadChars,        [], prefix),
-		MACRO(defKfBiosWriteStr,         [], prefix),
-		MACRO(defKfBiosWriteStrLen,      [], prefix),
-		MACRO(defKfBiosWriteStrUnpacked, [], prefix),
-	]
-
-
-
 ################
 # BIOS Params ##
 ################
@@ -74,13 +45,42 @@ KF_NL = '\n'
 
 
 
+def setupKfBios(params, prefix):
+	return [
+		DEBUG("----- kfBios -----", '\n'),
+		DEBUG("BIOS Constants"),
+		DATA(
+			LABEL("kfBiosTrackMask"), 0b_111111_000000_00,
+			LABEL("kfBiosSectorMask"), 0b_000000_111111_00,
+			LABEL("kfBiosTerminatorMask"), 0b_111111_000000_000000_000000_000000_00,
+			LABEL("TRK10"), 0b_001010_000000_00,
+			LABEL("SEC10"), 0b_000000_001010_00,
+			LABEL("10q4"), 0b0_10100000000_0000_00_000000_000000_00,
+		),
+		LABEL("kfBiosSetup_str"), MACRO(PackString, [
+			f"kopForth {KF_VER_STR}, 31 Bit, LGP-30 Edition\n" +
+			f"Copyright {KF_YEAR_STR}, compiled {datetime.now().date()}\n"
+		], prefix),
+		LABEL("kfBiosSetup_str_ptr"), LabAddr("kfBiosSetup_str"),
+		MACRO(defKfBiosPrintIsize,       [], prefix),
+		MACRO(defKfBiosPrintPointer,     [], prefix),
+		MACRO(defKfBiosWriteChar,        [], prefix),
+		MACRO(defKfBiosWriteChars,       [], prefix),
+		MACRO(defKfBiosReadChars,        [], prefix),
+		MACRO(defKfBiosWriteStr,         [], prefix),
+		MACRO(defKfBiosWriteStrLen,      [], prefix),
+		MACRO(defKfBiosWriteStrUnpacked, [], prefix),
+	]
+
+
+
 ####################
 # BIOS Terminal IO #
 ####################
 
 # Print the 31 bit signed int held in the acc.
 # Usage: MACRO(kfBiosPrintIsize)
-# NOTE: Breaks for numbers >= 10q4.
+# NOTE: Breaks for numbers >= 10q4 or <= than negative of that.
 def kfBiosPrintIsize(params, prefix):
 	return [
 		DEBUG("kfBiosPrintIsize()"),
@@ -160,7 +160,7 @@ def defKfBiosPrintPointer(params, prefix):
 		LABEL("kfBiosPrintPointer"),
 		# Save pointer and print '$'.
 		REP("kfBiosPrintPointer_ptr"),
-		MACRO(HardcodeText, ["\x0e6\x0f"], prefix),
+		MACRO(HardcodeText, ["\x0f6\x0e"], prefix),
 		# Extract track.
 		AND("kfBiosTrackMask"),
 		# If <10, print 0.

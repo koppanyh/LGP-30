@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-# LGPAsm v4.2 by koppanyh, @copy 2026
+# LGPAsm v4.3 by koppanyh, @copy 2026
+
+import sys
+
+def eprint(*args, **kwargs):
+	print(*args, file=sys.stderr, **kwargs)
 
 
 
@@ -36,11 +41,11 @@ class CharLit(Numerable):
 			"1": 0b000110, # L      #Patch for 1 == l
 			"2": 0b001010, # *
 			"3": 0b001110, # "
-			"4": 0b010010, # delta
+			"4": 0b010010, # Δ
 			"5": 0b010110, # %
 			"6": 0b011010, # $
-			"7": 0b011110, # pi
-			"8": 0b100010, # sigma
+			"7": 0b011110, # π
+			"8": 0b100010, # Σ
 			"9": 0b100110, # (
 			"f": 0b101010, # F
 			"g": 0b101110, # G
@@ -66,8 +71,8 @@ class CharLit(Numerable):
 			"a": 0b111001, # A
 			"s": 0b111101, # S
 			# Controls
-			"\x0f": 0b000100,       # Lowercase
-			"\x0e": 0b001000,       # Uppercase
+			"\x0e": 0b000100,       # Lowercase
+			"\x0f": 0b001000,       # Uppercase
 			"\r"  : 0b010000,
 			"\n"  : 0b010000,       # Make newline == carriage return
 			"\b"  : 0b010100,
@@ -327,7 +332,8 @@ class ORIG(Cmd):
 	def __init__(self, addr):
 		super().__init__(addr)
 	def apply(self, ctx):
-		ctx.addr = self.addr()
+		# ORIG can't refer to future labels, only labels that have already been defined.
+		ctx.addr = self.resolveLabels(ctx).addr()
 	def compile(self, ctx):
 		ctx.append(f";000{self.addr()}'")
 
@@ -354,23 +360,34 @@ def MACRO(macroDef, params=[], prefix=""):
 	expanded = macroDef(params, LabelPrefix.get(macroDef, prefix))
 	for op in expanded:
 		if isinstance(op, ORIG):
-			print(f"# WARNING: Macro {macroDef.__name__} modifying origin: {op}")
+			eprint(f"# WARNING: Macro {macroDef.__name__} modifying origin: {op}")
 	return expanded
 
 def DATA(*args):
+	datas = []
+	data = []
 	dlen = 0
-	out = []
 	for d in args:
 		if isinstance(d, LABEL):
-			out.append(d)
-		else:
-			out.append(HEX(Addr.toAddr(d)))
+			data.append(d)
+		elif isinstance(d, HEX):
+			data.append(d)
 			dlen += 1
-	if dlen < 1 or dlen > 63:
-		raise Exception("DATA length must be between 1 and 63")
-	out.insert(0, f",00000{dlen:02}'")
+		else:
+			data.append(HEX(Addr.toAddr(d)))
+			dlen += 1
+		if dlen == 63:
+			data.insert(0, f",00000{dlen:02}'")
+			datas.append(data)
+			data = []
+			dlen = 0
+	if dlen > 0:
+		data.insert(0, f",00000{dlen:02}'")
+		datas.append(data)
+	out = []
+	for d in datas:
+		out.extend(d)
 	return out
-	# TODO: split into multiple datas if it's too big
 
 class LABEL:
 	def __init__(self, name):

@@ -6,95 +6,116 @@ from lgpasm import *
 from kfBios import *
 from kfStatus import *
 from kfStack import *
+from kfType import *
 
 
 
-###############
-# Test Macros #
-###############
-
-def pftos(params, prefix):
+def setupKopForth(params, prefix):
 	return [
-		MACRO(kfStackPop,      [kfDataStack], prefix),
-		REP(prefix + "asdf"),
-		LABEL(prefix + "asdf"), PRT((0, 0)),
-		HLT(),
-		#MACRO(kfBiosWriteChar, [],            prefix),
-		MACRO(kfStackPush,     [kfDataStack], prefix),
-	]
-
-def pushWithOffset(params, prefix):
-	offset = params[0]
-	return [
-		LDA(("chars", 0, offset)),
-		MACRO(kfStackPush, [kfDataStack], prefix),
-		MACRO(pftos, [], prefix),
+	# Setup others.
+		MACRO(setupUtils),
+		MACRO(setupKfBios),
+		MACRO(setupKfStatus),
+		MACRO(setupKfStack),
+		MACRO(setupKfType),
+	# Setup self
+		DEBUG("----- kopForth -----", '\n'),
+		LabAddr("kopForth_wordsused"), LABEL("kopForth_wordsused"), MACRO(PackString, [" words used, "], prefix),
+		LabAddr("kopForth_wordsfree"), LABEL("kopForth_wordsfree"), MACRO(PackString, [" words free."], prefix),
+		LabAddr("kopForth_progend"), LABEL("kopForth_progend"), MACRO(PackString, ["Program end: "], prefix),
 	]
 
 
 
-a = Assembler(
-	ORIG((4, 0)),
-# Constants
-	DEBUG("Constants", '\n'),
-	LABEL("chars"), [Addr(CharLit(c).toNum(), 0) for c in "abc"], HLT(),
-	LABEL("packed"), MACRO(PackString, ["hello, world. today;\n"]),
-	DATA(
-		LABEL("chars_ptr"), LabAddr("chars"),
-		LABEL("packed_ptr"), LabAddr("packed"), 5*2,
-		LABEL("1243q30"), 1243*2,
-		LABEL("fdsa"), 0b0_10011111111_1111_11_111111_111111_11,# + 1,
-	),
-# Setup
-	MACRO(setupUtils),
-	MACRO(setupKfBios),
-	MACRO(setupKfStatus),
-	MACRO(setupKfStack),
-# System Functions
-	DEBUG("System Functions", '\n'),
-# Native Functions
-	DEBUG("Native Functions", '\n'),
-# Test Section
-	DEBUG("Test Section", '\n'),
-	LABEL("test"),
-	#MACRO(kfBiosSetup),
-	# print an integer
-	LDA("1243q30"),
-	LDA("fdsa"),
-	MACRO(kfBiosPrintIsize),
-	HLT(),
-	# print a packed string
-	LDA("packed_ptr"),
-	MACRO(kfBiosWriteStr),#Len),
-	# print a pointer
-	LDA("asdf"),
-	MACRO(kfBiosPrintPointer),
-	MACRO(kfBiosCR),
-	# write to stack
-	MACRO(kfBiosCR),
-	MACRO(pushWithOffset, [0]),
-	MACRO(pushWithOffset, [1]),
-	MACRO(pushWithOffset, [2]),
-	# read from stack
-	MACRO(HardcodeText, [" - "]),
-	MACRO(kfStackPop, [kfDataStack]), MACRO(kfBiosWriteChar),
-	MACRO(kfStackPop, [kfDataStack]), MACRO(kfBiosWriteChar),
-	MACRO(kfStackPop, [kfDataStack]), MACRO(kfBiosWriteChar),
-	MACRO(kfStackPop, [kfDataStack]), MACRO(kfBiosWriteChar),
-	LABEL("asdf"), HLT("asdf"),
-	EXEC("test"),
-)
+#############################
+# Internal macros         ▲ #
+#############################
+# User-accessible macros  ▼ #
+#############################
 
 
 
-#print(a)
-debug = False
-#debug = True
-r = a.assemble(debug=debug)
-for i in range(len(r)):
-	o = r[i]
-	n = r[i + 1] if i < len(r) - 1 else ""
-	if o == "0'" and n == "0'":  # Collapse zeros
-		print(o, end='')
-	else:
-		print(o)
+def kopForthInit(params, prefix):
+	return [
+		# Set up bios.
+		MACRO(kfBiosSetup, [], prefix),
+		DEBUG("kopForthInit()"),
+		# Print used space.
+		LDA("kopForth_here"),
+		SUB("kopForth_mem_ptr"),
+		LSR(1),
+		MACRO(kfBiosPrintIsize, [], prefix),
+		LDA(("kopForth_wordsused", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		# Pring free space.
+		LDA("kopForth_mem_end"),
+		SUB("kopForth_here"),
+		LSR(1),
+		MACRO(kfBiosPrintIsize, [], prefix),
+		LDA(("kopForth_wordsfree", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		MACRO(kfBiosCR, [], prefix),
+		# Print program end.
+		LDA(("kopForth_progend", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		LDA("program_end"),
+		MACRO(kfBiosPrintPointer, [], prefix),
+		MACRO(kfBiosCR),
+	]
+
+def kopForthTick(params, prefix):
+	return [
+		DEBUG("kopForthTick()"),
+		#LDA("kopForth_pc"),
+		#MACRO(kfBiosPrintPointer, [], prefix),
+		# Check if it's native.
+		LDA("kopForth_pc"),
+		ADD("KF_WORD_FLAGS_OFFSET"),
+		REP("kopForthTick_lda1"),
+		LABEL("kopForthTick_lda1"), LDA((0, 0)),
+		AND("KF_FLAG_MASK_NATIVE"),
+		SUB("KF_FLAG_MASK_NATIVE"),
+		BLZ("kopForthTick_not_nat"),
+		# Get native word addr.
+		LDA("kopForth_pc"),
+		ADD("KF_WORD_CODE_OFFSET"),
+		REP("kopForthTick_lda2"),
+		LABEL("kopForthTick_lda2"), LDA((0, 0)),
+		REP("kopForthTick_jmp1"),
+		# Set reurn addr.
+		SUB("0001"),
+		REP("kopForthTick_rta1"),
+		LABEL("kopForthTick_rta1"), RTA((0, 0)),
+		# Call native subroutine.
+		LABEL("kopForthTick_jmp1"), JMP((0, 0)),
+		# Pop return addr and save to pc.
+		MACRO(kfStackPop, [r_stack], prefix),
+		STA("kopForth_pc"),
+		JMP("kopForthTick_finalize"),
+		# Get forth word addr and save to pc.
+		LABEL("kopForthTick_not_nat"),
+		LDA("kopForth_pc"),
+		ADD("KF_WORD_CODE_OFFSET"),
+		REP("kopForthTick_lda3"),
+		LABEL("kopForthTick_lda3"), LDA((0, 0)),
+		STA("kopForth_pc"),
+		# Push next addr to return stack and set pc.
+		LABEL("kopForthTick_finalize"),
+		ADD("0001"),
+		MACRO(kfStackPush, [r_stack], prefix),
+		LDA("kopForth_pc"),
+		REP("kopForthTick_lda4"),
+		LABEL("kopForthTick_lda4"), LDA((0, 0)),
+		STA("kopForth_pc"),
+	]
+	'''
+	kfWord* cur_word = (kfWord*) forth->pc;
+	if (cur_word->flags.bit_flags.is_native) {
+		cur_word->code.native(forth);
+		kfRetnStackPop(&forth->r_stack, (void**) &forth->pc);
+	} else {
+		forth->pc = (uint8_t*) cur_word->code.forth;
+	}
+	kfRetnStackPush(&forth->r_stack, forth->pc + sizeof(kfWord*));
+	forth->pc = *(uint8_t**) forth->pc;
+	'''

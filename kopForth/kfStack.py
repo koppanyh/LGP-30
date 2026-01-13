@@ -8,28 +8,19 @@ from kfStatus import *
 
 
 
-kfDataStack = "data"
-kfRetnStack = "retn"
-
-
-
 def setupKfStack(params, prefix):
 	return [
 		DEBUG("----- kfStack -----", '\n'),
 		MACRO(defKfStackPush, [], prefix),
 		MACRO(defKfStackPop, [], prefix),
-		MACRO(allocKfStack, [kfDataStack, KF_DATA_STACK_SIZE], prefix),
-		MACRO(allocKfStack, [kfRetnStack, KF_RETN_STACK_SIZE], prefix),
 	]
-
-
 
 def allocKfStack(params, prefix):
 	name = params[0]
 	size = params[1]
 	stackval = "STACKVAL_" + name
 	return [
-		DEBUG(name + " stack"),
+		DEBUG(f"allocKfStack({repr(name)})"),
 		DATA(*([0] * size)),
 		LABEL(stackval),
 		LabAddr(stackval),  # Points to the stack head
@@ -46,7 +37,7 @@ def allocKfStack(params, prefix):
 def kfStackPush(params, prefix):
 	name = params[0]
 	return [
-		DEBUG(f"kfStackPush({name})"),
+		DEBUG(f"kfStackPush({repr(name)})"),
 		STC("kfStackPush_val"),  # Set the acc as the parameter to push
 		LDA("STACKPTR_" + name),  # Load the pointer of the stack val
 		RTA("kfStackPush_rtn"),
@@ -92,7 +83,7 @@ def defKfStackPush(params, prefix):
 def kfStackPop(params, prefix):
 	name = params[0]
 	return [
-		DEBUG(f"kfStackPop({name})"),
+		DEBUG(f"kfStackPop({repr(name)})"),
 		LDA("STACKPTR_" + name),
 		RTA("kfStackPop_rtn"),
 		JMP("kfStackPop"),

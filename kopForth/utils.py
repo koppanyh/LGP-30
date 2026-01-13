@@ -66,10 +66,8 @@ def HardcodeText(params, prefix):
 		[[
 			CharLit(c).print(),
 			HLT()
-		] for c in text],
+		] for c in TextToLGPChars(text)],
 	]
-# TODO remove this once kfStatus is ported over.
-outputText = HardcodeText
 
 # Subroutine that sets acc negative if acc == 0, 0 otherwise.
 # Usage: LDA("addr-of-value"),
@@ -102,10 +100,12 @@ def defEqualsZero(params, prefix):
 # Usage: MACRO(PackString, ["hello"])
 def PackString(params, prefix):
 	text = params[0]
+	text2 = TextToLGPChars(text)
+	# Pack each word with 5 chars.
 	words = []
 	word = 0
 	cnt = 0
-	for t in text:
+	for t in text2:
 		word <<= 6
 		word |= CharLit(t).toNum()
 		cnt += 1
@@ -114,10 +114,37 @@ def PackString(params, prefix):
 			words.append(word << 2)
 			word = 0
 	words.append(word << 2)
+	# Return the assembly.
 	return [
-		DEBUG(f"PackString({repr(text)})"),
+		DEBUG(f"PackString({repr(text)})  # {len(text2)} chars {len(words)} words"),
 		DATA(*words),
 	]
+def TextToLGPChars(text):
+	uppercaseMap = {
+		')': '0', 'L': 'l', '*': '2', '"': '3', 'Δ': '4',
+		'%': '5', '$': '6', 'π': '7', 'Σ': '8', '(': '9',
+		'F': 'f', 'G': 'g', 'J': 'j', 'K': 'k', 'Q': 'q',
+		'W': 'w', 'Z': 'z', 'B': 'b', 'Y': 'y', 'R': 'r',
+		'I': 'i', 'D': 'd', 'N': 'n', 'M': 'm', 'P': 'p',
+		'E': 'e', 'U': 'u', 'T': 't', 'H': 'h', 'C': 'c',
+		'A': 'a', 'S': 's', '=': '+', '_': '-', ':': ';',
+		'?': '/', ']': '.', '[': ',', 'V': 'v', 'O': 'o',
+		'X': 'x' }
+	caseDontCare = "\x0e\x0f\r\n\b\t'\0 "
+	text2 = ""
+	cur_upper = False
+	for t in text:
+		is_upper = t in uppercaseMap
+		if is_upper:
+			t = uppercaseMap[t]
+		# Insert upper/lower case commands into string.
+		if is_upper != cur_upper and t not in caseDontCare:
+			cur_upper = is_upper
+			text2 += "\x0f" if is_upper else "\x0e"
+		text2 += t
+	if cur_upper:
+		text2 += "\x0e"
+	return text2
 
 
 

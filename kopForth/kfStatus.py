@@ -3,6 +3,8 @@
 from utils import *
 from lgpasm import *
 
+from kfBios import *
+
 
 
 def setupKfStatus(params, prefix):
@@ -21,6 +23,20 @@ def setupKfStatus(params, prefix):
 			#KF_SYSTEM_NOT_IMP
 			#KF_SYSTEM_NULL
 		),
+		LabAddr("ERR_START"), LABEL("ERR_START"), MACRO(PackString, ["\n** "], prefix),
+		LabAddr("ERR_DONE"), LABEL("ERR_DONE"), MACRO(PackString, ["DONE"], prefix),
+		LabAddr("ERR_ERR"), LABEL("ERR_ERR"), MACRO(PackString, ["ERROR: "], prefix),
+		LabAddr("ERR_END"), LABEL("ERR_END"), MACRO(PackString, [" **"], prefix),
+		LABEL("ERR_DSO"), MACRO(PackString, ["STACK OVERFLOW"], prefix),
+		LABEL("ERR_DSU"), MACRO(PackString, ["STACK UNDERFLOW"], prefix),
+		LABEL("ERR_RSO"), MACRO(PackString, ["RETURN OVERFLOW"], prefix),
+		LABEL("ERR_RSU"), MACRO(PackString, ["RETURN UNDERFLOW"], prefix),
+		# These have to be in reverse order
+		LabAddr("ERR_RSU"),
+		LabAddr("ERR_RSO"),
+		LabAddr("ERR_DSU"),
+		LabAddr("ERR_DSO"),
+		LABEL("ERR_addrs"), LabAddr("ERR_addrs"),
 		MACRO(defKfStatusErr, [], prefix),
 	]
 
@@ -39,44 +55,33 @@ def defKfStatusErr(params, prefix):
 	return [
 		DEBUG("defKfStatusErr"),
 		LABEL("kfStatusErr"),
-		MACRO(outputText, ["\n\x0e22 "], prefix),
-		
+		# Save code and print '\n** '.
+		STC("kfStatusErr_code"),
+		LDA(("ERR_START", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		# Check if it's an error or print 'DONE' and quit.
+		LDA("kfStatusErr_code"),
 		BLZ("kfStatusErr_printerr"),
-		MACRO(outputText, ["done"], prefix),
+		LDA(("ERR_DONE", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
 		JMP("kfStatusErr_done"),
-		
+		# Print 'ERR: '.
 		LABEL("kfStatusErr_printerr"),
-		MACRO(outputText, ["err; "], prefix),
-		ADD("kfStatusErr_jumptable"), # Calculate the offset
-		REP("kfStatusErr_printerr1"), # Jump to it
-		LABEL("kfStatusErr_printerr1"),
-		JMP((0, 0)),
-		
-		# Jump table, in reverse order
-		JMP("kfStatusErr_retn_stack_underflow"),
-		JMP("kfStatusErr_retn_stack_overflow"),
-		JMP("kfStatusErr_data_stack_underflow"),
-		JMP("kfStatusErr_data_stack_overflow"),
-		LABEL("kfStatusErr_jumptable"),
-		LabAddr("kfStatusErr_jumptable"),
-		
-		# Text errors
-		LABEL("kfStatusErr_data_stack_overflow"),
-		MACRO(outputText, ["dso"], prefix),
-		JMP("kfStatusErr_done"),
-		LABEL("kfStatusErr_data_stack_underflow"),
-		MACRO(outputText, ["dsu"], prefix),
-		JMP("kfStatusErr_done"),
-		LABEL("kfStatusErr_retn_stack_overflow"),
-		MACRO(outputText, ["rso"], prefix),
-		JMP("kfStatusErr_done"),
-		LABEL("kfStatusErr_retn_stack_underflow"),
-		MACRO(outputText, ["rsu"], prefix),
-		JMP("kfStatusErr_done"),
-		
+		LDA(("ERR_ERR", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		# Get err str address and print.
+		LDA("kfStatusErr_code"),
+		ADD("ERR_addrs"),
+		REP("kfStatusErr_printerr1"),
+		LABEL("kfStatusErr_printerr1"), LDA((0, 0)),
+		MACRO(kfBiosWriteStr, [], prefix),
+		# Print ' **' and loop.
 		LABEL("kfStatusErr_done"),
-		MACRO(outputText, [" 22\x0f"], prefix),
+		LDA(("ERR_END", 0, -1)),
+		MACRO(kfBiosWriteStr, [], prefix),
 		LABEL("kfStatusErr_done2"),
 		HLT(),
 		JMP("kfStatusErr_done2"),
+		# Params.
+		LABEL("kfStatusErr_code"), HLT(),
 	]
