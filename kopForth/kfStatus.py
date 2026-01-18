@@ -17,10 +17,10 @@ def setupKfStatus(params, prefix):
 			LABEL("KF_DATA_STACK_UNDERFLOW"), -0b_000000_000010_00,  # 2
 			LABEL("KF_RETN_STACK_OVERFLOW"),  -0b_000000_000011_00,  # 3
 			LABEL("KF_RETN_STACK_UNDERFLOW"), -0b_000000_000100_00,  # 4
+			LABEL("KF_SYSTEM_NOT_IMP"),       -0b_000000_000101_00,  # 5
 			#KF_TEST_PTR_WIDTH
 			#KF_TEST_STRUCT
 			#KF_SYSTEM_COMP_ONLY
-			#KF_SYSTEM_NOT_IMP
 			#KF_SYSTEM_NULL
 		),
 		LabAddr("ERR_START"), LABEL("ERR_START"), MACRO(PackString, ["\n** "], prefix),
@@ -31,7 +31,9 @@ def setupKfStatus(params, prefix):
 		LABEL("ERR_DSU"), MACRO(PackString, ["STACK UNDERFLOW"], prefix),
 		LABEL("ERR_RSO"), MACRO(PackString, ["RETURN OVERFLOW"], prefix),
 		LABEL("ERR_RSU"), MACRO(PackString, ["RETURN UNDERFLOW"], prefix),
+		LABEL("ERR_SNI"), MACRO(PackString, ["NOT IMPLEMENTED"], prefix),
 		# These have to be in reverse order
+		LabAddr("ERR_SNI"),
 		LabAddr("ERR_RSU"),
 		LabAddr("ERR_RSO"),
 		LabAddr("ERR_DSU"),

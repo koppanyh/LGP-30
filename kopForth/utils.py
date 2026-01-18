@@ -85,9 +85,9 @@ def defEqualsZero(params, prefix):
 	return [
 		DEBUG("defEqualsZero"),
 		LABEL("EqualsZero"),
-		BLZ("EqualsZero_no"),  # <0 = 0
+		BLZ("EqualsZero_no"),  # <0 -> 0
 		SUB("2"),
-		BLZ("EqualsZero_yes"),  # 0 = -1
+		BLZ("EqualsZero_yes"),  # 0 -> -1
 		LABEL("EqualsZero_no"),
 		CLA(),
 		JMP("EqualsZero_rtn"),
@@ -100,7 +100,8 @@ def defEqualsZero(params, prefix):
 # Usage: MACRO(PackString, ["hello"])
 def PackString(params, prefix):
 	text = params[0]
-	text2 = TextToLGPChars(text)
+	force_lower = params[1] if len(params) > 1 else False
+	text2 = TextToLGPChars(text, force_lower)
 	# Pack each word with 5 chars.
 	words = []
 	word = 0
@@ -119,7 +120,7 @@ def PackString(params, prefix):
 		DEBUG(f"PackString({repr(text)})  # {len(text2)} chars {len(words)} words"),
 		DATA(*words),
 	]
-def TextToLGPChars(text):
+def TextToLGPChars(text, force_lower=False):
 	uppercaseMap = {
 		')': '0', 'L': 'l', '*': '2', '"': '3', 'Δ': '4',
 		'%': '5', '$': '6', 'π': '7', 'Σ': '8', '(': '9',
@@ -137,6 +138,8 @@ def TextToLGPChars(text):
 		is_upper = t in uppercaseMap
 		if is_upper:
 			t = uppercaseMap[t]
+		if force_lower:
+			is_upper = False
 		# Insert upper/lower case commands into string.
 		if is_upper != cur_upper and t not in caseDontCare:
 			cur_upper = is_upper

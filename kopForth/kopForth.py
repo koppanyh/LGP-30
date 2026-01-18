@@ -6,23 +6,134 @@ from lgpasm import *
 from kfBios import *
 from kfStatus import *
 from kfStack import *
-from kfType import *
+from kfWord import *
+
+from kfWordsNative import *
 
 
 
 def setupKopForth(params, prefix):
 	return [
 	# Setup others.
-		MACRO(setupUtils),
-		MACRO(setupKfBios),
-		MACRO(setupKfStatus),
-		MACRO(setupKfStack),
-		MACRO(setupKfType),
+		MACRO(setupUtils, [], prefix),
+		MACRO(setupKfBios, [], prefix),
+		MACRO(setupKfStatus, [], prefix),
+		MACRO(setupKfStack, [], prefix),
+		MACRO(setupKfWord, [], prefix),
 	# Setup self
 		DEBUG("----- kopForth -----", '\n'),
+		MACRO(kopForth, [], prefix),
 		LabAddr("kopForth_wordsused"), LABEL("kopForth_wordsused"), MACRO(PackString, [" words used, "], prefix),
 		LabAddr("kopForth_wordsfree"), LABEL("kopForth_wordsfree"), MACRO(PackString, [" words free."], prefix),
 		LabAddr("kopForth_progend"), LABEL("kopForth_progend"), MACRO(PackString, ["Program end: "], prefix),
+	]
+
+def kfPopulateWords(params, prefix):
+	return [
+		MACRO(kfWord, ["boot",
+			-1,
+			KF_FLAG_MASK_NONE,
+			"kfWord_boot_data",
+			[
+				"kfWord_(literal)", 69420*2,
+				"kfWord_.",
+				"kfWord_(literal)", 0b_001000_011010_000100_00,
+				"kfWord_emit",
+				"kfWord_key",
+				"kfWord_dup",
+				"kfWord_dup",
+				"kfWord_emit",
+				"kfWord_.",
+				"kfWord_0branch", "asdfasdf",
+				"kfWord_(literal)", "kopForth_mem_here",
+				"kfWord_(literal)", "kopForth_mem_here",
+				"kfWord_(literal)", 3*2,
+				"kfWord_accept",
+				"kfWord_type",
+				LABEL("asdfasdf"),
+				"kfWord_bye"
+			]
+		], prefix),
+		
+		MACRO(kfPopulateWordsNative, [], prefix),
+		
+		MACRO(kfWord, ["bye",
+			"boot",  # TODO set this pointer to be correct
+			KF_FLAG_MASK_NATIVE,
+			"kopForth_bye",
+			[]
+		], prefix),
+		LABEL("kopForth_bye"),
+		MACRO(kfStatusErr, ["KF_SYSTEM_DONE"], prefix),
+		JMP("rtn_to_kopForthTick"),
+	]
+
+# The data needed to keep track of what the current input source is.
+# It's the number of fields in the kfInputSource struct.
+KF_INPUT_SOURCE_COUNT = 4
+def kfInputSource(params, prefix):
+	return [
+		DEBUG(f"kfInputSource()"),
+		# The source ID value, 0=user input device, -1=string (via EVALUATE)
+		LABEL("kopForth_in_src_source_id"), HLT(),
+		# The index for the next character to read from the input buffer.
+		LABEL("kopForth_in_src_in_offset"), HLT(),
+		# The total size of the text in the input buffer.
+		LABEL("kopForth_in_src_in_len"), HLT(),
+		# The address of the start of the input buffer.
+		LABEL("kopForth_in_src_buf"), LabAddr("kopForth_in_buf"),
+	]
+
+# This is the main struct from which an instance of kopForth is created.
+# Maintain the core/heap/stacks ordering of the fields.
+def kopForth(params, prefix):
+	return [
+		DEBUG("kopForth()"),
+	# Core system fields
+		# Pointer to the next available `mem` byte.
+		LABEL("kopForth_here"), LabAddr("kopForth_mem_here"),
+		# Pointer to the latest active word in `mem`. FIND starts searching here.
+		LABEL("kopForth_latest"), LabAddr("kfWord_bye"),
+		# Pointer to the most recently defined word, but not necessarily the latest active word.
+		LABEL("kopForth_pending"), LabAddr("kfWord_bye"),
+		# The compilation state, true=compiling, false=interpret. Uses `isize` so Forth programs can just use `@` and `!`.
+		LABEL("kopForth_state"), HLT(),
+		# Program counter for forth inner loop.
+		LABEL("kopForth_pc"), LabAddr("kfWord_boot"),
+	# Data heap
+		# The general memory space where the word dictionary is held.
+		DEBUG("kopForth_mem"),
+		LABEL("kopForth_mem_ptr"), LabAddr("kopForth_mem"),
+		LABEL("kopForth_mem"),
+		MACRO(kfPopulateWords, [], prefix),
+		LABEL("kopForth_mem_here"),
+		# TODO maybe put disposable memory here
+		ORIG(("kopForth_mem", 0, KF_MEM_SIZE)),  # Reserve space for mem.
+		LABEL("kopForth_mem_end"), LabAddr("kopForth_mem_end"),
+	# Stacks + input buffer region
+		# The data stack.
+		MACRO(allocKfStack, [d_stack, KF_DATA_STACK_SIZE], prefix),
+		# The return stack.
+		MACRO(allocKfStack, [r_stack, KF_RETN_STACK_SIZE], prefix),
+		# The current input source definition.
+		MACRO(kfInputSource, [], prefix),
+		# The input buffer, shared between terminal and files.
+		LABEL("kopForth_in_buf"), DATA(*([0]*KF_IN_BUF_SIZE)),
+	]
+
+def kfDebug(params, prefix):
+	return [
+		# Print pointer.
+		LDA("kopForth_pc"),
+		MACRO(kfBiosPrintPointer, [], prefix),
+		# Print ':'.
+		MACRO(HardcodeText, [":"], prefix),
+		# Print word name.
+		LDA("KF_MAX_NAME_SIZE"),
+		STC("kfBiosWriteStrLen_len"),
+		LDA("kopForth_pc"),
+		MACRO(kfBiosWriteStrLen, [], prefix),
+		MACRO(kfBiosCR, [], prefix),
 	]
 
 
@@ -66,8 +177,8 @@ def kopForthInit(params, prefix):
 def kopForthTick(params, prefix):
 	return [
 		DEBUG("kopForthTick()"),
-		#LDA("kopForth_pc"),
-		#MACRO(kfBiosPrintPointer, [], prefix),
+		# Debug stuff.
+		#MACRO(kfDebug, [], prefix),
 		# Check if it's native.
 		LDA("kopForth_pc"),
 		ADD("KF_WORD_FLAGS_OFFSET"),
@@ -82,12 +193,9 @@ def kopForthTick(params, prefix):
 		REP("kopForthTick_lda2"),
 		LABEL("kopForthTick_lda2"), LDA((0, 0)),
 		REP("kopForthTick_jmp1"),
-		# Set reurn addr.
-		SUB("0001"),
-		REP("kopForthTick_rta1"),
-		LABEL("kopForthTick_rta1"), RTA((0, 0)),
-		# Call native subroutine.
+		# Call native word.
 		LABEL("kopForthTick_jmp1"), JMP((0, 0)),
+		LABEL("rtn_to_kopForthTick"),
 		# Pop return addr and save to pc.
 		MACRO(kfStackPop, [r_stack], prefix),
 		STA("kopForth_pc"),

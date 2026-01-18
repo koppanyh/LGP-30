@@ -32,7 +32,7 @@ KF_RETN_STACK_SIZE = 63
 # How many cells to allocate for the input buffer.
 KF_IN_BUF_SIZE     = 80
 # How many cells to allocate for the working memory (plus word definitions).
-KF_MEM_SIZE        = 2048
+KF_MEM_SIZE        = 2048 + 1024 #+ 128
 # How many cells to allocate for the names of words (including \0).
 KF_MAX_NAME_SIZE   = 3
 
