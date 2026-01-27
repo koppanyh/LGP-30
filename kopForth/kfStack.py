@@ -16,6 +16,7 @@ r_stack = "kopForth_retn"
 def setupKfStack(params, prefix):
 	return [
 		DEBUG("----- kfStack -----", '\n'),
+		MACRO(defKfStackPrint, [], prefix),
 		MACRO(defKfStackPush, [], prefix),
 		MACRO(defKfStackPop, [], prefix),
 	]
@@ -34,7 +35,62 @@ def allocKfStack(params, prefix):
 		),
 	]
 
+# Reset the stack
+# Usage: MACRO(kfStackReset, [kfDataStack])
+def kfStackReset(params, prefix):
+	name = params[0]
+	return [
+		DEBUG(f"kfStackReset({repr(name)})"),
+		LDA("STACKPTR_" + name),  # Load the pointer of the stack val
+		STC("STACKVAL_" + name),  # Write it to the stack val
+	]
 
+
+
+# Print the stack
+# Usage: MACRO(kfStackPrint, [kfDataStack])
+def kfStackPrint(params, prefix):
+	name = params[0]
+	return [
+		DEBUG(f"kfStackPrint({repr(name)})"),
+		LDA("STACKPTR_" + name),  # Load the pointer of the stack val
+		RTA("kfStackPrint_rtn"),
+		JMP("kfStackPrint"),
+	]
+def defKfStackPrint(params, prefix):
+	return [
+		DEBUG("defKfStackPrint"),
+		LABEL("kfStackPrint"),
+		# Save pointer value.
+		REP("kfStackPrint_sub1"),  # STACKVAL
+		REP("kfStackPrint_lda2"),
+		ADD("0001"),
+		REP("kfStackPrint_lda1"),  # STACKPTR
+		# Calculate stack size.
+		LABEL("kfStackPrint_lda1"), LDA((0, 0)),
+		LABEL("kfStackPrint_sub1"), SUB((0, 0)),
+		STA("kfStackPrint_val"),
+		# Loop start.
+		LABEL("kfStackPrint_loop"),
+		# Decrement pointer.
+		LDA("kfStackPrint_lda2"),
+		SUB("0001"),
+		REP("kfStackPrint_lda2"),
+		# Decrement counter.
+		LDA("kfStackPrint_val"),
+		SUB("0001"),
+		BLZ("kfStackPrint_rtn"),
+		STC("kfStackPrint_val"),
+		# Read value and print.
+		LABEL("kfStackPrint_lda2"), LDA((0, 0)),
+		MACRO(kfBiosPrintIsize, [], prefix),
+		MACRO(HardcodeText, [", "], prefix),
+		# Loop.
+		JMP("kfStackPrint_loop"),
+		LABEL("kfStackPrint_rtn"), JMP((0, 0)),
+		# Params.
+		LABEL("kfStackPrint_val"), HLT(),  # Stack size
+	]
 
 # Push acc to stack
 # Usage: MACRO(kfStackPush, [kfDataStack])

@@ -1,4 +1,4 @@
-load test.tx
+load kopForth.tx
 set cpu manual
 set cpu 6b
 co

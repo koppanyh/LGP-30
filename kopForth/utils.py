@@ -17,13 +17,14 @@ def setupUtils(params, prefix):
 		DEBUG("----- utils -----", '\n'),
 		DEBUG("util consts"),
 		DATA(
-			LABEL("devnull"), 0,
+			LABEL("-4"), LABEL("-0001"), -4,
 			LABEL("-2"), -2,
 			LABEL("-1q-1"), 0b1_00000000000_0000_00_000000_000000_00,
 			# 1 can't be included because it would fall in the dead bit.
 			LABEL("2"), LABEL("1q30"), 2,
 			LABEL("4"), LABEL("0001"), Addr(0, 1),  # 1 address unit
 			LABEL("8"), LABEL("0002"), Addr(0, 2),  # 2 address units
+			LABEL("14"), 14,
 			LABEL("16"), 16,
 			#LABEL("32"), 32,
 			LABEL("64"), 64,
@@ -52,6 +53,7 @@ def setupUtils(params, prefix):
 			LABEL("addrBits"), addrBits,
 		),
 		MACRO(defEqualsZero, [], prefix),
+		MACRO(defEquals, [], prefix),
 	]
 
 
@@ -96,6 +98,54 @@ def defEqualsZero(params, prefix):
 		LABEL("EqualsZero_rtn"), JMP((0, 0)),
 	]
 
+# Subroutine for `acc = a == b ? -1 : 0`.
+# Usage: LDA("val_a"),
+#        STC("Equals_a"),
+#        LDA("val_b"),
+#        MACRO(Equals)
+def Equals(params, prefix):
+	return [
+		DEBUG("Equals()"),
+		STA("Equals_b"),
+		RTA("Equals_rtn"),
+		JMP("Equals"),
+	]
+def defEquals(params, prefix):
+	return [
+		DEBUG("defEquals"),
+		LABEL("Equals"),
+		BLZ("Equals_b_neg"),
+		# B is positive but A is negative, not the same.
+		LDA("Equals_a"),
+		BLZ("Equals_neq"),
+		# Both are positive.
+		LDA("Equals_b"),
+		JMP("Equals_cmp"),
+		LABEL("Equals_b_neg"),
+		LDA("Equals_a"),
+		BLZ("Equals_a_neg"),
+		# B is negative but A is positive, not the same.
+		JMP("Equals_neq"),
+		LABEL("Equals_a_neg"),
+		# Both of them are negative, turn them positive.
+		NEG(),
+		STC("Equals_a"),
+		LDA("Equals_b"),
+		NEG(),
+		STA("Equals_b"),
+		LABEL("Equals_cmp"),
+		# Compare through subtraction.
+		SUB("Equals_a"),
+		MACRO(EqualsZero, [], prefix),
+		JMP("Equals_rtn"),
+		LABEL("Equals_neq"),
+		CLA(),
+		LABEL("Equals_rtn"), JMP((0, 0)),
+		# Params.
+		LABEL("Equals_a"), HLT(),
+		LABEL("Equals_b"), HLT(),
+	]
+
 # Turn a string into a word-packed string.
 # Usage: MACRO(PackString, ["hello"])
 def PackString(params, prefix):
@@ -120,6 +170,8 @@ def PackString(params, prefix):
 		DEBUG(f"PackString({repr(text)})  # {len(text2)} chars {len(words)} words"),
 		DATA(*words),
 	]
+def PackStringData(params, prefix):
+	return MACRO(PackString, params, prefix)[1][1:]
 def TextToLGPChars(text, force_lower=False):
 	uppercaseMap = {
 		')': '0', 'L': 'l', '*': '2', '"': '3', 'Δ': '4',
@@ -171,7 +223,7 @@ def LSR(bits=1):
 # Pseudo op that clears acc.
 # Usage: CLA()
 def CLA():
-	return STC("devnull")
+	return STC((0, 0))
 
 # Pseudo op that negates the value in acc.
 # Usage: NEG()

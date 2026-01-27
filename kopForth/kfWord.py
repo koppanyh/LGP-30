@@ -12,6 +12,7 @@ def setupKfWord(params, prefix):
 		DEBUG("----- kfWord -----", '\n'),
 		DATA(
 			# Word field offsets.
+			LABEL("KF_WORD_NAME_LEN_OFFSET"),  Addr(0, KF_WORD_NAME_LEN_OFFSET),
 			LABEL("KF_WORD_NAME_OFFSET"),  Addr(0, KF_WORD_NAME_OFFSET),
 			LABEL("KF_WORD_LINK_OFFSET"),  Addr(0, KF_WORD_LINK_OFFSET),
 			LABEL("KF_WORD_FLAGS_OFFSET"), Addr(0, KF_WORD_FLAGS_OFFSET),
@@ -22,7 +23,7 @@ def setupKfWord(params, prefix):
 			LABEL("KF_FLAG_MASK_IMMEDIATE"), KF_FLAG_MASK_IMMEDIATE,
 			LABEL("KF_FLAG_MASK_COMPILE"),   KF_FLAG_MASK_COMPILE,
 			# Other constants.
-			LABEL("KF_MAX_NAME_SIZE"), KF_MAX_NAME_SIZE,
+			LABEL("KF_MAX_NAME_SIZE"), KF_MAX_NAME_SIZE*2,
 		),
 	]
 
@@ -37,7 +38,8 @@ KF_FLAG_MASK_COMPILE   = 8
 # functionality of each Forth word in memory.
 # Must be packed so that we know the field offsets and the words defined in
 # forth will be able to know where to access a field with pointer arithmetic.
-KF_WORD_NAME_OFFSET  = 0
+KF_WORD_NAME_LEN_OFFSET  = 0
+KF_WORD_NAME_OFFSET  = KF_WORD_NAME_LEN_OFFSET + 1
 KF_WORD_LINK_OFFSET  = KF_WORD_NAME_OFFSET + KF_MAX_NAME_SIZE
 KF_WORD_FLAGS_OFFSET = KF_WORD_LINK_OFFSET + 1
 KF_WORD_CODE_OFFSET  = KF_WORD_FLAGS_OFFSET + 1
@@ -52,17 +54,20 @@ def kfWord(params, prefix):
 	if isinstance(link, str) and not link.startswith("kfWord_"):
 		link = "kfWord_" + link
 	# Pad the name until it fits
-	max_name_chars = KF_MAX_NAME_SIZE * 5
-	name_chars = TextToLGPChars(name)
-	if len(name_chars) > max_name_chars:
+	chars = MACRO(PackStringData, [name], prefix)
+	if chars[-1].addr() == 0:
+		chars = chars[:-1]
+	chars_len = len(chars)
+	if chars_len > KF_MAX_NAME_SIZE:
 		raise Exception(f"Name {repr(name)} doesn't fit in {KF_MAX_NAME_SIZE} words.")
-	name_chars += "\0" * (max_name_chars - len(name_chars))
-	# This is totally a hack
-	chars = MACRO(PackString, [name_chars], prefix)[1][1:][:-1]
+	for _ in range(KF_MAX_NAME_SIZE - chars_len):
+		chars.append(HEX(0))
 	return [
 		DEBUG(f"kfWord({repr(name)})"),
 		LABEL(prefix),
 		DATA(
+			# How long the name is (not including \0).
+			LABEL(prefix+"_name_len"), chars_len*2,
 			# The name of the word.
 			LABEL(prefix+"_name"), *chars,
 			# Linked-list pointer to the previous word.
@@ -82,39 +87,36 @@ def kfWord(params, prefix):
 
 
 
-# Macros for defining words and stuff in kopForth.
-
-def kopForthCreateWord(params, prefix):
-	name  = params[0]
-	flags = params[1]
-	code  = params[2]
-	data  = params[3]
-	return [
-		LABEL("WRD_" + name),  # Global label starting with WRD_
-		DATA(0, 0),    # name
-		AbsAddr(0, 0), # link  # TODO
-		DATA(flags),
-		Addr.toAddr(code),
-		data,
-	]
-
-def kopForthAddWord(params, prefix):
-	name  = params[0]
-	flags = params[1]
-	data  = params[2]
-	return [
-		MACRO(worddef, [
+# Class to help with linking words automatically.
+class Linker:
+	def __init__(self):
+		self.prev = 0
+	def new(self, name, flags=KF_FLAG_MASK_NONE, code_override=None):
+		link = self.prev
+		self.prev = name
+		code = code_override or f"kfWord_{name}_data"
+		#eprint(name, link, flags, code)
+		return [
 			name,
+			link,
 			flags,
-			("WRD_" + name, 0, KF_WORD_DATA_OFFSET),
-			data
-		], prefix)
+			code,
+		]
+
+
+
+# Usage: DATA(*PrintString("hello"))
+def PrintString(text):
+	return [
+		"kfWord_s-quot-c",
+		*kopForthAddString(text),
+		"kfWord_type",
 	]
 
-def kopForthAddNativeWord(params, prefix):
-	name    = params[0]
-	funcPtr = params[1]
-	flags   = params[2]
+# Usage: DATA(*kopForthAddString("hello"))
+def kopForthAddString(text):
+	chars = MACRO(PackStringData, [text], '')
 	return [
-		MACRO(worddef, [name, flags | kfFlag.native, fnaddr, []], prefix)
+		len(chars)*2,
+		*chars
 	]

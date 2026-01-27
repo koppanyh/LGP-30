@@ -9,6 +9,11 @@ from kfStack import *
 from kfWord import *
 
 from kfWordsNative import *
+from kfWordsVarAddrConst import *
+from kfWordsStackMem import *
+from kfWordsString import *
+from kfWordsInterpret import *
+from kfWordsCompile import *
 
 
 
@@ -29,41 +34,27 @@ def setupKopForth(params, prefix):
 	]
 
 def kfPopulateWords(params, prefix):
+	link = Linker()
 	return [
-		MACRO(kfWord, ["boot",
-			-1,
-			KF_FLAG_MASK_NONE,
-			"kfWord_boot_data",
-			[
-				"kfWord_(literal)", 69420*2,
-				"kfWord_.",
-				"kfWord_(literal)", 0b_001000_011010_000100_00,
-				"kfWord_emit",
-				"kfWord_key",
-				"kfWord_dup",
-				"kfWord_dup",
-				"kfWord_emit",
-				"kfWord_.",
-				"kfWord_0branch", "asdfasdf",
-				"kfWord_(literal)", "kopForth_mem_here",
-				"kfWord_(literal)", "kopForth_mem_here",
-				"kfWord_(literal)", 3*2,
-				"kfWord_accept",
-				"kfWord_type",
-				LABEL("asdfasdf"),
-				"kfWord_bye"
-			]
-		], prefix),
+		MACRO(kfWord, [*link.new(
+			"boot",
+		),[
+			#"kfWord_yesdebug",
+			"kfWord_quit",
+			"kfWord_exit"
+		]], prefix),
 		
-		MACRO(kfPopulateWordsNative, [], prefix),
+		MACRO(kfPopulateWordsNative, [link], prefix),
+		MACRO(kfPopulateWordsVarAddrConst, [link], prefix),
+		MACRO(kfPopulateWordsStackMem, [link], prefix),
+		MACRO(kfPopulateWordsString, [link], prefix),
+		MACRO(kfPopulateWordsInterpret, [link], prefix),
+		MACRO(kfPopulateWordsCompile, [link], prefix),
 		
-		MACRO(kfWord, ["bye",
-			"boot",  # TODO set this pointer to be correct
+		MACRO(kfWord, [*link.new(
+			"bye",
 			KF_FLAG_MASK_NATIVE,
-			"kopForth_bye",
-			[]
-		], prefix),
-		LABEL("kopForth_bye"),
+		),[]], prefix),
 		MACRO(kfStatusErr, ["KF_SYSTEM_DONE"], prefix),
 		JMP("rtn_to_kopForthTick"),
 	]
@@ -98,6 +89,8 @@ def kopForth(params, prefix):
 		LABEL("kopForth_pending"), LabAddr("kfWord_bye"),
 		# The compilation state, true=compiling, false=interpret. Uses `isize` so Forth programs can just use `@` and `!`.
 		LABEL("kopForth_state"), HLT(),
+		# The debug state, true=enabled, false=disabled. Uses `isize` so Forth programs can just use `@` and `!`.
+		LABEL("kopForth_debug"), HLT(),
 		# Program counter for forth inner loop.
 		LABEL("kopForth_pc"), LabAddr("kfWord_boot"),
 	# Data heap
@@ -118,11 +111,22 @@ def kopForth(params, prefix):
 		# The current input source definition.
 		MACRO(kfInputSource, [], prefix),
 		# The input buffer, shared between terminal and files.
-		LABEL("kopForth_in_buf"), DATA(*([0]*KF_IN_BUF_SIZE)),
+		LABEL("kopForth_in_buf_ptr"), LabAddr("kopForth_in_buf"),
+		LABEL("kopForth_in_buf"),
+		ORIG(("kopForth_in_buf", 0, KF_IN_BUF_SIZE)),  # Reserve space for buf
 	]
 
 def kfDebug(params, prefix):
 	return [
+		# Print indentations.
+		LDA("STACKPTR_"+r_stack),
+		SUB("STACKVAL_"+r_stack),
+		LABEL("kfDebug_indent"),
+		SUB("0001"),
+		BLZ("kfDebug_stop"),
+		MACRO(HardcodeText, ["  "], prefix),
+		JMP("kfDebug_indent"),
+		LABEL("kfDebug_stop"),
 		# Print pointer.
 		LDA("kopForth_pc"),
 		MACRO(kfBiosPrintPointer, [], prefix),
@@ -132,8 +136,14 @@ def kfDebug(params, prefix):
 		LDA("KF_MAX_NAME_SIZE"),
 		STC("kfBiosWriteStrLen_len"),
 		LDA("kopForth_pc"),
+		ADD("KF_WORD_NAME_OFFSET"),
 		MACRO(kfBiosWriteStrLen, [], prefix),
-		MACRO(kfBiosCR, [], prefix),
+		# Print stacks.
+		MACRO(HardcodeText, ["  ( "], prefix),
+		MACRO(kfStackPrint, [d_stack], prefix),
+		MACRO(HardcodeText, [")  [ "], prefix),
+		MACRO(kfStackPrint, [r_stack], prefix),
+		MACRO(HardcodeText, ["]\n"], prefix),
 	]
 
 
@@ -178,7 +188,9 @@ def kopForthTick(params, prefix):
 	return [
 		DEBUG("kopForthTick()"),
 		# Debug stuff.
-		#MACRO(kfDebug, [], prefix),
+		LDA("kopForth_debug"),
+		BLZ("kopForthTick_debug"),
+		LABEL("kopForthTick_start"),
 		# Check if it's native.
 		LDA("kopForth_pc"),
 		ADD("KF_WORD_FLAGS_OFFSET"),
@@ -215,6 +227,12 @@ def kopForthTick(params, prefix):
 		REP("kopForthTick_lda4"),
 		LABEL("kopForthTick_lda4"), LDA((0, 0)),
 		STA("kopForth_pc"),
+		JMP("kopForthTick_end"),
+		# Debug stuff.
+		LABEL("kopForthTick_debug"),
+		MACRO(kfDebug, [], prefix),
+		JMP("kopForthTick_start"),
+		LABEL("kopForthTick_end"),
 	]
 	'''
 	kfWord* cur_word = (kfWord*) forth->pc;

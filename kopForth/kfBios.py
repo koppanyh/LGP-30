@@ -32,7 +32,7 @@ KF_RETN_STACK_SIZE = 63
 # How many cells to allocate for the input buffer.
 KF_IN_BUF_SIZE     = 80
 # How many cells to allocate for the working memory (plus word definitions).
-KF_MEM_SIZE        = 2048 + 1024 #+ 128
+KF_MEM_SIZE        = 2048 + 1024 - 128 #+ 128
 # How many cells to allocate for the names of words (including \0).
 KF_MAX_NAME_SIZE   = 3
 
@@ -70,6 +70,7 @@ def setupKfBios(params, prefix):
 		MACRO(defKfBiosWriteStr,         [], prefix),
 		MACRO(defKfBiosWriteStrLen,      [], prefix),
 		MACRO(defKfBiosWriteStrUnpacked, [], prefix),
+		MACRO(defKfBiosDumpMem,          [], prefix),
 	]
 
 
@@ -403,4 +404,68 @@ def kfBiosSetup(params, prefix):
 		# Intro credits.
 		LDA("kfBiosSetup_str_ptr"),
 		MACRO(kfBiosWriteStr, [], prefix),
+	]
+
+
+
+##############
+# BIOS Debug #
+##############
+
+# Dump a section of memory for debugging.
+# Usage: LDA("u"),
+#        STC("kfBiosDumpMem_u"),
+#        LDA("addr"),
+#        MACRO(kfBiosDumpMem)
+def kfBiosDumpMem(params, prefix):
+	return [
+		DEBUG("kfBiosDumpMem()"),
+		RTA("kfBiosDumpMem_rtn"),
+		JMP("kfBiosDumpMem"),
+	]
+def defKfBiosDumpMem(params, prefix):
+	return [
+		DEBUG("defKfBiosWriteChars"),
+		LABEL("kfBiosDumpMem"),
+		# Store pointer and reset interval.
+		REP("kfBiosDumpMem_ptr"),
+		CLA(),
+		STC("kfBiosDumpMem_intv"),
+		LABEL("kfBiosDumpMem_loop"),
+		# Break if u is 0.
+		LDA("kfBiosDumpMem_u"),
+		SUB("2"),
+		BLZ("kfBiosDumpMem_brk"),
+		STC("kfBiosDumpMem_u"),
+		# Decrement intv.
+		LDA("kfBiosDumpMem_intv"),
+		SUB("2"),
+		BLZ("kfBiosDumpMem_nl"),
+		STC("kfBiosDumpMem_intv"),
+		JMP("kfBiosDumpMem_prchr"),
+		# Print newline and line header and reset intv.
+		LABEL("kfBiosDumpMem_nl"),
+		MACRO(kfBiosCR, [], prefix),
+		LDA("kfBiosDumpMem_ptr"),
+		MACRO(kfBiosPrintPointer, [], prefix),
+		MACRO(HardcodeText, [" "], prefix),
+		LDA("14"),  # set to 7 so it prints 8
+		STC("kfBiosDumpMem_intv"),
+		# Print the value at ptr and inc ptr.
+		LABEL("kfBiosDumpMem_prchr"),
+		LABEL("kfBiosDumpMem_ptr"), LDA((0, 0)),
+		MACRO(kfBiosPrintIsize, [], prefix),
+		MACRO(HardcodeText, [" "], prefix),
+		LDA("kfBiosDumpMem_ptr"),
+		ADD("0001"),
+		STC("kfBiosDumpMem_ptr"),
+		# Loop.
+		JMP("kfBiosDumpMem_loop"),
+		# Print newline and return.
+		LABEL("kfBiosDumpMem_brk"),
+		MACRO(kfBiosCR, [], prefix),
+		LABEL("kfBiosDumpMem_rtn"), JMP((0, 0)),
+		# Vars.
+		LABEL("kfBiosDumpMem_u"), HLT(),
+		LABEL("kfBiosDumpMem_intv"), HLT(),
 	]

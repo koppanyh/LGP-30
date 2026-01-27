@@ -18,6 +18,7 @@ def setupKfStatus(params, prefix):
 			LABEL("KF_RETN_STACK_OVERFLOW"),  -0b_000000_000011_00,  # 3
 			LABEL("KF_RETN_STACK_UNDERFLOW"), -0b_000000_000100_00,  # 4
 			LABEL("KF_SYSTEM_NOT_IMP"),       -0b_000000_000101_00,  # 5
+			LABEL("KF_NAME_TOO_LONG"),        -0b_000000_000110_00,  # 6
 			#KF_TEST_PTR_WIDTH
 			#KF_TEST_STRUCT
 			#KF_SYSTEM_COMP_ONLY
@@ -32,7 +33,9 @@ def setupKfStatus(params, prefix):
 		LABEL("ERR_RSO"), MACRO(PackString, ["RETURN OVERFLOW"], prefix),
 		LABEL("ERR_RSU"), MACRO(PackString, ["RETURN UNDERFLOW"], prefix),
 		LABEL("ERR_SNI"), MACRO(PackString, ["NOT IMPLEMENTED"], prefix),
+		LABEL("ERR_NTL"), MACRO(PackString, ["NAME TOO LONG"], prefix),
 		# These have to be in reverse order
+		LabAddr("ERR_NTL"),
 		LabAddr("ERR_SNI"),
 		LabAddr("ERR_RSU"),
 		LabAddr("ERR_RSO"),
