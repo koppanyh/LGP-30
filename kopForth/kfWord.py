@@ -90,7 +90,7 @@ def kfWord(params, prefix):
 # Class to help with linking words automatically.
 class Linker:
 	def __init__(self):
-		self.prev = 0
+		self.prev = -1
 	def new(self, name, flags=KF_FLAG_MASK_NONE, code_override=None):
 		link = self.prev
 		self.prev = name

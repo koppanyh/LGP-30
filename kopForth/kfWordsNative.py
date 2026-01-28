@@ -18,6 +18,7 @@ def kfPopulateWordsNative(params, prefix):
 			LABEL("kfWordsNative_tmpA"), 0,
 			LABEL("kfWordsNative_tmpB"), 0,
 			LABEL("kfWordsNative_tmpC"), 0,
+			LABEL("kfWordsNative_tmpD"), 0,
 		),
 		#################################################
 		MACRO(kfWord, [*link.new(
@@ -48,14 +49,6 @@ def kfPopulateWordsNative(params, prefix):
 		MACRO(kfStackPop, [d_stack], prefix),
 		SUB("kfWordsNative_tmpB"),
 		MACRO(kfStackPush, [d_stack], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"*",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
@@ -259,125 +252,98 @@ def kfPopulateWordsNative(params, prefix):
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"create-c",  # (CREATE)
+			"find",
 			KF_FLAG_MASK_NATIVE,
 		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"compare",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO rewrite this to do the ordering compare.
-		# 0 if same, -1 if different
-		MACRO(kfStackPop, [d_stack], prefix),  # u2
-		STC("kfWordsNative_tmpC"),
-		MACRO(kfStackPop, [d_stack], prefix),  # addr2
-		REP("kfWord_compare_addr2_sub1"),
-		MACRO(kfStackPop, [d_stack], prefix),  # u1
-		STC("kfWordsNative_tmpB"),
-		MACRO(kfStackPop, [d_stack], prefix),  # addr1
-		REP("kfWord_compare_addr1_lda1"),
-		# Different if u1 != u2.
-		LDA("kfWordsNative_tmpC"),
-		SUB("kfWordsNative_tmpB"),
-		MACRO(EqualsZero, [], prefix),
-		BLZ("kfWord_compare_loop"),
-		JMP("kfWord_compare_neq"),
-		# Iterate and find differences.
-		LABEL("kfWord_compare_loop"),
-		# Exit if u is 0.
-		LDA("kfWordsNative_tmpC"),
+		# Pop addr from stack and save ptr and len.
+		MACRO(kfStackPop, [d_stack], prefix),
+		#ADD("KF_WORD_NAME_LEN_OFFSET"),
+		REP("kfWord_find_lda1"),
+		#SUB("KF_WORD_NAME_LEN_OFFSET"),
+		ADD("KF_WORD_NAME_OFFSET"),
+		STC("kfWordsNative_tmpA"),  # c ptr
+		LABEL("kfWord_find_lda1"), LDA((0, 0)),
+		STA("kfWordsNative_tmpB"),  # len
 		SUB("2"),
-		BLZ("kfWord_compare_eq"),
-		STC("kfWordsNative_tmpC"),
-		# Test comparison.
-		LABEL("kfWord_compare_addr1_lda1"), LDA((0, 0)),
+		BLZ("kfWord_find_not_found"),
+		# Init latest addr.
+		LDA("kopForth_latest"),
+		LABEL("kfWord_find_loop"),
+		STA("kfWordsNative_tmpC"),  # latest
+		# Get word len.
+		#ADD("KF_WORD_NAME_LEN_OFFSET"),
+		REP("kfWord_find_lda3"),
+		LABEL("kfWord_find_lda3"), LDA((0, 0)),
+		STA("kfWordsNative_tmpD"),  # latest len
 		STC("Equals_a"),
-		LABEL("kfWord_compare_addr2_sub1"), LDA((0, 0)),
+		LDA("kfWordsNative_tmpB"),
 		MACRO(Equals, [], prefix),
-		BLZ("kfWord_compare_reloop"),
-		# Not equal.
-		JMP("kfWord_compare_neq"),
-		# Increment addrs and loop.
-		LABEL("kfWord_compare_reloop"),
-		LDA("kfWord_compare_addr1_lda1"),
+		BLZ("kfWord_find_len_eq"),
+		JMP("kfWord_find_next"),
+		# Load the string addresses.
+		LABEL("kfWord_find_len_eq"),
+		LDA("kfWordsNative_tmpC"),
+		ADD("KF_WORD_NAME_OFFSET"),
+		REP("kfWord_find_latest_c_ptr"),
+		LDA("kfWordsNative_tmpA"),
+		REP("kfWord_find_c_ptr"),
+		LABEL("kfWord_find_subloop"),
+		# Dec latest len.
+		LDA("kfWordsNative_tmpD"),
+		SUB("2"),
+		BLZ("kfWord_find_found"),
+		STC("kfWordsNative_tmpD"),
+		# Compare the chars.
+		LABEL("kfWord_find_latest_c_ptr"), LDA((0, 0)),
+		STC("Equals_a"),
+		LABEL("kfWord_find_c_ptr"), LDA((0, 0)),
+		MACRO(Equals, [], prefix),
+		BLZ("kfWord_find_chars_eq"),
+		JMP("kfWord_find_next"),
+		LABEL("kfWord_find_chars_eq"),
+		# Inc the addrs.
+		LDA("kfWord_find_latest_c_ptr"),
 		ADD("0001"),
-		REP("kfWord_compare_addr1_lda1"),
-		LDA("kfWord_compare_addr2_sub1"),
+		REP("kfWord_find_latest_c_ptr"),
+		LDA("kfWord_find_c_ptr"),
 		ADD("0001"),
-		REP("kfWord_compare_addr2_sub1"),
-		JMP("kfWord_compare_loop"),
-		# Equal
-		LABEL("kfWord_compare_eq"),
+		REP("kfWord_find_c_ptr"),
+		# Subloop.
+		JMP("kfWord_find_subloop"),
+		# Get next word in the list or return.
+		LABEL("kfWord_find_next"),
+		LDA("kfWordsNative_tmpC"),
+		ADD("KF_WORD_LINK_OFFSET"),
+		REP("kfWord_find_lda4"),
+		LABEL("kfWord_find_lda4"), LDA((0, 0)),
+		BLZ("kfWord_find_not_found"),
+		# Loop.
+		JMP("kfWord_find_loop"),
+		# Return the original addr and 0.
+		LABEL("kfWord_find_not_found"),
+		LDA("kfWordsNative_tmpA"),
+		SUB("0001"),
+		MACRO(kfStackPush, [d_stack], prefix),
 		CLA(),
-		JMP("kfWord_compare_rtn"),
-		# Not equal.
-		LABEL("kfWord_compare_neq"),
-		LDA("-2"),
-		# Push value and return.
-		LABEL("kfWord_compare_rtn"),
 		MACRO(kfStackPush, [d_stack], prefix),
 		JMP("rtn_to_kopForthTick"),
-		#################################################
-		# TODO refactor this to be less slow.
-		MACRO(kfWord, [*link.new(
-			"find",
-		), [
-			"kfWord_r-push",
-			"kfWord_latest",
-			LABEL("kfWord_find_begin"),
-			"kfWord_dup",
-			"kfWord_literal-c", 0,
-			"kfWord_eq",
-			"kfWord_0branch", LabAddr("kfWord_find_not_end"),
-			"kfWord_drop",
-			"kfWord_r-pop",
-			"kfWord_literal-c", 0,
-			"kfWord_exit",
-			LABEL("kfWord_find_not_end"),
-			"kfWord_dup",
-			"kfWord_name-ptr",
-			"kfWord_count",
-			"kfWord_r-peek",
-			"kfWord_count",
-			"kfWord_compare",
-			"kfWord_0branch", LabAddr("kfWord_find_found"),
-			"kfWord_link-ptr",
-			"kfWord_peek",
-			"kfWord_branch", LabAddr("kfWord_find_begin"),
-			LABEL("kfWord_find_found"),
-			"kfWord_r-pop",
-			"kfWord_drop",
-			"kfWord_dup",
-			"kfWord_flags-ptr",
-			"kfWord_peek",
-			"kfWord_literal-c", KF_FLAG_MASK_IMMEDIATE,
-			"kfWord_and",
-			"kfWord_0branch", LabAddr("kfWord_find_not_imm"),
-			"kfWord_literal-c", 1*2,
-			"kfWord_exit",
-			LABEL("kfWord_find_not_imm"),
-			"kfWord_literal-c", -1*2,
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"m*/",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"d+",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
+		# Return the xt and if it's immediate.
+		LABEL("kfWord_find_found"),
+		LDA("kfWordsNative_tmpC"),
+		MACRO(kfStackPush, [d_stack], prefix),
+		LDA("kfWordsNative_tmpC"),
+		ADD("KF_WORD_FLAGS_OFFSET"),
+		REP("kfWord_find_lda2"),
+		LABEL("kfWord_find_lda2"), LDA((0, 0)),
+		AND("KF_FLAG_MASK_IMMEDIATE"),
+		MACRO(EqualsZero, [], prefix),
+		BLZ("kfWord_find_not_imm"),
+		LDA("2"),
+		JMP("kfWord_find_done"),
+		LABEL("kfWord_find_not_imm"),
+		LDA("-2"),
+		LABEL("kfWord_find_done"),
+		MACRO(kfStackPush, [d_stack], prefix),
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
@@ -410,14 +376,6 @@ def kfPopulateWordsNative(params, prefix):
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"nand",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			"s-quot-c",  # (S")
 			KF_FLAG_MASK_NATIVE | KF_FLAG_MASK_COMPILE,
 		), []], prefix),
@@ -442,35 +400,10 @@ def kfPopulateWordsNative(params, prefix):
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"s-quot",  # S"
-			KF_FLAG_MASK_NATIVE | KF_FLAG_MASK_COMPILE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			".-quot",  # ."
-			KF_FLAG_MASK_NATIVE | KF_FLAG_MASK_IMMEDIATE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			".s",
 			KF_FLAG_MASK_NATIVE,
 		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			".r",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
+		MACRO(kfStackPrint, [d_stack], prefix),
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
@@ -482,38 +415,6 @@ def kfPopulateWordsNative(params, prefix):
 		STC("kfBiosDumpMem_u"),
 		MACRO(kfStackPop, [d_stack], prefix),
 		MACRO(kfBiosDumpMem, [], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"n-r-push",  # N>R
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"n-r-pop",  # NR>
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"save-input",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
-		JMP("rtn_to_kopForthTick"),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"restore-input",
-			KF_FLAG_MASK_NATIVE,
-		), []], prefix),
-		# TODO
-		MACRO(kfStatusErr, ["KF_SYSTEM_NOT_IMP"], prefix),
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(

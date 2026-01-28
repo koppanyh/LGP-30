@@ -102,14 +102,6 @@ def kfPopulateWordsInterpret(params, prefix):
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"parse",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			"parse-name",
 		), [
 			"kfWord_source",
@@ -226,8 +218,9 @@ def kfPopulateWordsInterpret(params, prefix):
 		MACRO(kfWord, [*link.new(
 			"comp-mode",  # ]
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_true",
+			"kfWord_state",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
@@ -271,9 +264,7 @@ def kfPopulateWordsInterpret(params, prefix):
 			"kfWord_swap",
 			"kfWord_drop",
 			"kfWord_0branch", LabAddr("kfWord_interpret_b31"),
-				#*PrintString("findstart"),
 			"kfWord_find",
-				#*PrintString("findend"),
 			"kfWord_state",
 			"kfWord_peek",
 			"kfWord_0branch", LabAddr("kfWord_interpret_b17"),
@@ -334,14 +325,6 @@ def kfPopulateWordsInterpret(params, prefix):
 			"kfWord_branch", LabAddr("kfWord_interpret_b00"),
 			LABEL("kfWord_interpret_b31"),
 			"kfWord_drop",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"evaluate",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
 			"kfWord_exit"
 		]], prefix),
 		#################################################

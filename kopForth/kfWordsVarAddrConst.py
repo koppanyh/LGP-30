@@ -132,14 +132,6 @@ def kfPopulateWordsVarAddrConst(params, prefix):
 			"kfWord_literal-c", 0,
 			"kfWord_exit"
 		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"version",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
 		
 		##########
 		# Values #

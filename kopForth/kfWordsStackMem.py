@@ -64,22 +64,6 @@ def kfPopulateWordsStackMem(params, prefix):
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"invert",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"or",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			"and",
 			KF_FLAG_MASK_NATIVE,
 		),[]], prefix),
@@ -99,34 +83,10 @@ def kfPopulateWordsStackMem(params, prefix):
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"neq",  # <>
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"leq",  # <=
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			"gtr",  # >
 		), [
 			"kfWord_swap",
 			"kfWord_lss",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"geq",  # >=
-		), [
-			# TODO
-			"kfWord_err-not-imp",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
@@ -174,14 +134,6 @@ def kfPopulateWordsStackMem(params, prefix):
 		#######################
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"cells",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
 			"+poke",  # +!
 		), [
 			"kfWord_dup",
@@ -209,14 +161,6 @@ def kfPopulateWordsStackMem(params, prefix):
 			"kfWord_poke",
 			"kfWord_literal-c", 1*2,
 			"kfWord_allot",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"c,",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
 			"kfWord_exit"
 		]], prefix),
 		#################################################

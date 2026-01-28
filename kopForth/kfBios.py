@@ -26,13 +26,13 @@ KF_VER_STR = f"v{KF_VER_MAJOR}.{KF_VER_MINOR}.{KF_VER_PATCH}"
 #
 
 # How many items to allocate for the data stack.
-KF_DATA_STACK_SIZE = 63
+KF_DATA_STACK_SIZE = 32
 # How many items to allocate for the return stack.
-KF_RETN_STACK_SIZE = 63
+KF_RETN_STACK_SIZE = 32
 # How many cells to allocate for the input buffer.
-KF_IN_BUF_SIZE     = 80
+KF_IN_BUF_SIZE     = 32
 # How many cells to allocate for the working memory (plus word definitions).
-KF_MEM_SIZE        = 2048 + 1024 - 128 #+ 128
+KF_MEM_SIZE        = 2048 + 1024 + 64
 # How many cells to allocate for the names of words (including \0).
 KF_MAX_NAME_SIZE   = 3
 
