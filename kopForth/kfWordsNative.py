@@ -252,6 +252,36 @@ def kfPopulateWordsNative(params, prefix):
 		JMP("rtn_to_kopForthTick"),
 		#################################################
 		MACRO(kfWord, [*link.new(
+			"create-c",  # (CREATE)
+			KF_FLAG_MASK_NATIVE,
+		), []], prefix),
+		# Set new word addrs.
+		LDA("kopForth_here"),
+		ADD("KF_WORD_LINK_OFFSET"),
+		REP("kfWord_create-c_stc1"),
+		LDA("kopForth_here"),
+		ADD("KF_WORD_FLAGS_OFFSET"),
+		REP("kfWord_create-c_stc3"),
+		LDA("kopForth_here"),
+		ADD("KF_WORD_CODE_OFFSET"),
+		REP("kfWord_create-c_stc2"),
+		# Set link.
+		LDA("kopForth_pending"),
+		LABEL("kfWord_create-c_stc1"), STC((0, 0)),
+		# Update latest and pending.
+		LDA("kopForth_here"),
+		STA("kopForth_pending"),
+		STA("kopForth_latest"),
+		# Alloc word mem in here.
+		ADD("sizeof_kfWord"),
+		STA("kopForth_here"),
+		# Set code pointer.
+		LABEL("kfWord_create-c_stc2"), STC((0, 0)),
+		# Clear flags.
+		LABEL("kfWord_create-c_stc3"), STC((0, 0)),
+		JMP("rtn_to_kopForthTick"),
+		#################################################
+		MACRO(kfWord, [*link.new(
 			"find",
 			KF_FLAG_MASK_NATIVE,
 		), []], prefix),
@@ -374,6 +404,14 @@ def kfPopulateWordsNative(params, prefix):
 		LABEL("kfWord_lss_push"),
 		MACRO(kfStackPush, [d_stack], prefix),
 		JMP("rtn_to_kopForthTick"),
+		#################################################
+		MACRO(kfWord, [*link.new(
+			"nand",
+		), [
+			"kfWord_and",
+			"kfWord_invert",
+			"kfWord_exit"
+		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"s-quot-c",  # (S")

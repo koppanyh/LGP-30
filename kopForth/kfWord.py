@@ -24,6 +24,7 @@ def setupKfWord(params, prefix):
 			LABEL("KF_FLAG_MASK_COMPILE"),   KF_FLAG_MASK_COMPILE,
 			# Other constants.
 			LABEL("KF_MAX_NAME_SIZE"), KF_MAX_NAME_SIZE*2,
+			LABEL("sizeof_kfWord"),    Addr(0, sizeof_kfWord),
 		),
 	]
 
@@ -44,6 +45,10 @@ KF_WORD_LINK_OFFSET  = KF_WORD_NAME_OFFSET + KF_MAX_NAME_SIZE
 KF_WORD_FLAGS_OFFSET = KF_WORD_LINK_OFFSET + 1
 KF_WORD_CODE_OFFSET  = KF_WORD_FLAGS_OFFSET + 1
 KF_WORD_DATA_OFFSET  = KF_WORD_CODE_OFFSET + 1
+
+# The size of the word without data.
+sizeof_kfWord = 1 + KF_MAX_NAME_SIZE + 1 + 1 + 1
+
 def kfWord(params, prefix):
 	name = params[0]
 	link = params[1]

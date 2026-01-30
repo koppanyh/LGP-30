@@ -20,8 +20,10 @@ def kfPopulateWordsCompile(params, prefix):
 		MACRO(kfWord, [*link.new(
 			"reveal",
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_pp",
+			"kfWord_peek",
+			"kfWord_lp",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
@@ -36,88 +38,134 @@ def kfPopulateWordsCompile(params, prefix):
 		MACRO(kfWord, [*link.new(
 			"code-ptr",  # >CODE
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", Addr(0, KF_WORD_CODE_OFFSET),
+			"kfWord_+",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"body-ptr",  # >BODY
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", Addr(0, KF_WORD_DATA_OFFSET),
+			"kfWord_+",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"unreveal",
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_latest",
+			"kfWord_link-ptr",
+			"kfWord_peek",
+			"kfWord_lp",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"dodoes",
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_r-pop",
+			"kfWord_r-pop",
+			"kfWord_dup",
+			"kfWord_r-push",
+			"kfWord_swap",
+			"kfWord_r-push",
+			"kfWord_literal-c", Addr(0, 1),
+			"kfWord_-",
+			"kfWord_peek",
+			"kfWord_body-ptr",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"does-def-c",  # (DOES>)
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_r-pop",
+			"kfWord_pp",
+			"kfWord_peek",
+			"kfWord_code-ptr",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"does-def",  # DOES>
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_does-def-c"),
+			"kfWord_compile,",
+			"kfWord_literal-c", LabAddr("kfWord_dodoes"),
+			"kfWord_compile,",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"create",
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_bl",
+			"kfWord_word",
+			"kfWord_drop",
+			"kfWord_create-c",
+			"kfWord_does-def-c",
+			"kfWord_dodoes",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"def",  # :
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_create",
+			"kfWord_unreveal",
+			"kfWord_comp-mode",
+			"kfWord_here",
+			"kfWord_pp",
+			"kfWord_peek",
+			"kfWord_code-ptr",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
-			"undef",  # ;
+			";",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_exit"),
+			"kfWord_compile,",
+			"kfWord_reveal",
+			"kfWord_intp-mode",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"immediate",
+			KF_FLAG_MASK_IMMEDIATE
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_pp",
+			"kfWord_peek",
+			"kfWord_flags-ptr",
+			"kfWord_dup",
+			"kfWord_c-peek",
+			"kfWord_literal-c", KF_FLAG_MASK_IMMEDIATE,
+			"kfWord_or",
+			"kfWord_swap",
+			"kfWord_c-poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"compile-only",
+			KF_FLAG_MASK_IMMEDIATE
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_pp",
+			"kfWord_peek",
+			"kfWord_flags-ptr",
+			"kfWord_dup",
+			"kfWord_c-peek",
+			"kfWord_literal-c", KF_FLAG_MASK_COMPILE,
+			"kfWord_or",
+			"kfWord_swap",
+			"kfWord_c-poke",
 			"kfWord_exit"
 		]], prefix),
 		

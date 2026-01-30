@@ -64,6 +64,26 @@ def kfPopulateWordsStackMem(params, prefix):
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
+			"invert",
+			KF_FLAG_MASK_NATIVE,
+		),[]], prefix),
+		MACRO(kfStackPop, [d_stack], prefix),
+		NEG(),
+		SUB("2"),
+		MACRO(kfStackPush, [d_stack], prefix),
+		JMP("rtn_to_kopForthTick"),
+		#################################################
+		MACRO(kfWord, [*link.new(
+			"or",
+		), [
+			"kfWord_invert",
+			"kfWord_swap",
+			"kfWord_invert",
+			"kfWord_nand",
+			"kfWord_exit"
+		]], prefix),
+		#################################################
+		MACRO(kfWord, [*link.new(
 			"and",
 			KF_FLAG_MASK_NATIVE,
 		),[]], prefix),
@@ -166,7 +186,7 @@ def kfPopulateWordsStackMem(params, prefix):
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"compile,",
-			code_override="kfWord_,"
+			code_override="kfWord_,_data"
 		), [
 		]], prefix),
 		#################################################
