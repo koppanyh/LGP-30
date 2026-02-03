@@ -175,25 +175,37 @@ def kfPopulateWordsCompile(params, prefix):
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"if",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"else",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_0branch"),
+			"kfWord_compile,",
+			"kfWord_here",
+			"kfWord_literal-c", 0,
+			"kfWord_,",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"then",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_here",
+			"kfWord_swap",
+			"kfWord_poke",
+			"kfWord_exit"
+		]], prefix),
+		#################################################
+		MACRO(kfWord, [*link.new(
+			"else",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
+		), [
+			"kfWord_literal-c", LabAddr("kfWord_branch"),
+			"kfWord_compile,",
+			"kfWord_here",
+			"kfWord_swap",
+			"kfWord_literal-c", 0,
+			"kfWord_,",
+			"kfWord_then",
 			"kfWord_exit"
 		]], prefix),
 		
@@ -203,65 +215,116 @@ def kfPopulateWordsCompile(params, prefix):
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"i",
+			KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
-			"kfWord_exit"
-		]], prefix),
-		#################################################
-		MACRO(kfWord, [*link.new(
-			"j",
-		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_r-pop",
+			"kfWord_r-peek",
+			"kfWord_swap",
+			"kfWord_r-push",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"do-c",  # (DO)
+			KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_swap",
+			"kfWord_r-pop",
+			"kfWord_dup",
+			"kfWord_peek",
+			"kfWord_r-push",
+			"kfWord_swap",
+			"kfWord_r-push",
+			"kfWord_swap",
+			"kfWord_r-push",
+			"kfWord_literal-c", 0b_000000_000001_00,
+			"kfWord_+",
+			"kfWord_r-push",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"do",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", "kfWord_do-c",
+			"kfWord_compile,",
+			"kfWord_here",
+			"kfWord_literal-c", 0,
+			"kfWord_,",
+			"kfWord_here",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"leave",
+			KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_r-pop",
+			"kfWord_drop",
+			"kfWord_r-pop",
+			"kfWord_drop",
+			"kfWord_r-pop",
+			"kfWord_drop",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"+loop-c",  # (+LOOP)
+			KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_r-pop",
+			"kfWord_peek",
+			"kfWord_swap",
+			"kfWord_r-pop",
+			"kfWord_over",
+			"kfWord_+",
+			"kfWord_r-pop",
+			"kfWord_rot",
+			"kfWord_literal-c", 0,
+			"kfWord_lss",
+			"kfWord_0branch", LabAddr("kfWord_+loop-c_b02"),
+			"kfWord_2dup",
+			"kfWord_lss",
+			"kfWord_branch", LabAddr("kfWord_+loop-c_b03"),
+			LABEL("kfWord_+loop-c_b02"),
+			"kfWord_2dup",
+			"kfWord_geq",
+			LABEL("kfWord_+loop-c_b03"),
+			"kfWord_0branch", LabAddr("kfWord_+loop-c_b05"),
+			"kfWord_drop",
+			"kfWord_drop",
+			"kfWord_drop",
+			"kfWord_exit",
+			LABEL("kfWord_+loop-c_b05"),
+			"kfWord_r-push",
+			"kfWord_r-push",
+			"kfWord_r-push",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"+loop",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_+loop-c"),
+			"kfWord_compile,",
+			"kfWord_compile,",
+			"kfWord_here",
+			"kfWord_swap",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"loop",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_literal-c"),
+			"kfWord_compile,",
+			"kfWord_literal-c", 1*2,
+			"kfWord_,",
+			"kfWord_+loop",
 			"kfWord_exit"
 		]], prefix),
 		
@@ -271,41 +334,55 @@ def kfPopulateWordsCompile(params, prefix):
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"begin",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_here",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"again",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_branch"),
+			"kfWord_compile,",
+			"kfWord_,",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"until",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_0branch"),
+			"kfWord_compile,",
+			"kfWord_,",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"while",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_0branch"),
+			"kfWord_compile,",
+			"kfWord_here",
+			"kfWord_swap",
+			"kfWord_literal-c", 0,
+			"kfWord_,",
 			"kfWord_exit"
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
 			"repeat",
+			KF_FLAG_MASK_IMMEDIATE | KF_FLAG_MASK_COMPILE,
 		), [
-			# TODO
-			"kfWord_err-not-imp",
+			"kfWord_literal-c", LabAddr("kfWord_branch"),
+			"kfWord_compile,",
+			"kfWord_,",
+			"kfWord_here",
+			"kfWord_swap",
+			"kfWord_poke",
 			"kfWord_exit"
 		]], prefix),
 	]

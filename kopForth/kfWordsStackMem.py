@@ -111,6 +111,14 @@ def kfPopulateWordsStackMem(params, prefix):
 		]], prefix),
 		#################################################
 		MACRO(kfWord, [*link.new(
+			"geq",  # >=
+		), [
+			"kfWord_lss",
+			"kfWord_0eq",
+			"kfWord_exit"
+		]], prefix),
+		#################################################
+		MACRO(kfWord, [*link.new(
 			"r-peek",  # R@
 		), [
 			"kfWord_r-pop",
